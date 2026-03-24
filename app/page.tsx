@@ -1,65 +1,191 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback, useMemo } from 'react';
+import { useAccount } from 'wagmi';
+import { Layout } from '@/components/Layout';
+import { NFTGrid } from '@/components/NFTGrid';
+import { ModeSelector, type SendMode } from '@/components/ModeSelector';
+import { RecipientInput } from '@/components/RecipientInput';
+import { RecipientList } from '@/components/RecipientList';
+import { ApprovalButton } from '@/components/ApprovalButton';
+import { TransactionStatus } from '@/components/TransactionStatus';
+import { useNFTs } from '@/hooks/useNFTs';
+import { useConduitApproval } from '@/hooks/useConduitApproval';
+import { useTransfer } from '@/hooks/useTransfer';
 
 export default function Home() {
+  const { isConnected } = useAccount();
+  const { data: nfts, isLoading: nftsLoading, error: nftsError, refetch: refetchNFTs } = useNFTs();
+  const { isApproved } = useConduitApproval();
+  const { status, sendAllToOne, sendToMultiple, reset, ready } = useTransfer();
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<SendMode>('single');
+
+  // Single mode: raw input + resolved address
+  const [recipientRaw, setRecipientRaw] = useState('');
+  const [recipientResolved, setRecipientResolved] = useState<string | null>(null);
+
+  // Multiple mode: raw inputs + resolved addresses
+  const [recipientMap, setRecipientMap] = useState<Map<string, string>>(new Map());
+  const [resolvedMap, setResolvedMap] = useState<Map<string, string>>(new Map());
+
+  const toggleNFT = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 50) {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    if (!nfts) return;
+    setSelected(new Set(nfts.slice(0, 50).map((n) => n.identifier)));
+  }, [nfts]);
+
+  const deselectAll = useCallback(() => setSelected(new Set()), []);
+
+  const updateRecipientRaw = useCallback((tokenId: string, raw: string) => {
+    setRecipientMap((prev) => {
+      const next = new Map(prev);
+      next.set(tokenId, raw);
+      return next;
+    });
+  }, []);
+
+  const updateRecipientResolved = useCallback((tokenId: string, address: string | null) => {
+    setResolvedMap((prev) => {
+      const next = new Map(prev);
+      if (address) {
+        next.set(tokenId, address);
+      } else {
+        next.delete(tokenId);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectedNFTs = useMemo(
+    () => (nfts || []).filter((n) => selected.has(n.identifier)),
+    [nfts, selected]
+  );
+
+  const canSend = useMemo(() => {
+    if (!isApproved || !ready || selected.size === 0 || status.phase !== 'idle') return false;
+
+    if (mode === 'single') {
+      return !!recipientResolved;
+    } else {
+      return selectedNFTs.every((nft) => resolvedMap.has(nft.identifier));
+    }
+  }, [isApproved, ready, selected, status, mode, recipientResolved, selectedNFTs, resolvedMap]);
+
+  const handleReset = useCallback(() => {
+    reset();
+    setSelected(new Set());
+    refetchNFTs();
+  }, [reset, refetchNFTs]);
+
+  const handleSend = useCallback(() => {
+    if (!canSend) return;
+    if (mode === 'single') {
+      sendAllToOne(selectedNFTs, recipientResolved!);
+    } else {
+      // Build a Map<tokenId, resolvedAddress> for the transfer hook
+      sendToMultiple(selectedNFTs, resolvedMap);
+    }
+  }, [canSend, mode, selectedNFTs, recipientResolved, resolvedMap, sendAllToOne, sendToMultiple]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <Layout>
+      {!isConnected ? (
+        <div className="text-center py-20 space-y-4">
+          <h2 className="font-robotastic text-4xl md:text-5xl tracking-wider">
+            MULTI-SEND
+          </h2>
+          <p className="text-xs uppercase tracking-[0.3em] opacity-60">
+            Send multiple Normies NFTs using the OpenSea Conduit
+          </p>
+          <div className="border border-normies-dark dark:border-normies-light p-6 max-w-md mx-auto mt-8">
+            <p className="text-sm uppercase tracking-wider opacity-60">
+              Connect your wallet to get started
+            </p>
+          </div>
+        </div>
+      ) : nftsLoading ? (
+        <div className="text-center py-20 space-y-4">
+          <div className="w-4 h-4 border-2 border-normies-dark dark:border-normies-light border-t-transparent animate-spin mx-auto" />
+          <p className="text-xs uppercase tracking-wider opacity-40 animate-pulse">
+            Loading your Normies...
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      ) : nftsError ? (
+        <div className="text-center py-20">
+          <div className="border border-normies-dark dark:border-normies-light p-6 max-w-md mx-auto">
+            <p className="text-sm uppercase tracking-wider">Failed to load NFTs</p>
+            <p className="text-xs opacity-60 mt-2">{nftsError.message}</p>
+          </div>
         </div>
-      </main>
-    </div>
+      ) : !nfts || nfts.length === 0 ? (
+        <div className="text-center py-20">
+          <div className="border border-normies-dark dark:border-normies-light p-6 max-w-md mx-auto">
+            <p className="text-sm uppercase tracking-wider opacity-60">
+              You don&apos;t own any Normies NFTs
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <NFTGrid
+            nfts={nfts}
+            selected={selected}
+            onToggle={toggleNFT}
+            onSelectAll={selectAll}
+            onDeselectAll={deselectAll}
+          />
+
+          {selected.size > 0 && (
+            <div className="space-y-6 border-t border-normies-dark dark:border-normies-light pt-8">
+              <ModeSelector mode={mode} onChange={setMode} />
+
+              {mode === 'single' ? (
+                <RecipientInput
+                  value={recipientRaw}
+                  onChange={setRecipientRaw}
+                  onResolved={setRecipientResolved}
+                />
+              ) : (
+                <RecipientList
+                  selectedNFTs={selectedNFTs}
+                  recipientMap={recipientMap}
+                  onRecipientChange={updateRecipientRaw}
+                  onRecipientResolved={updateRecipientResolved}
+                />
+              )}
+
+              <div className="flex items-center gap-6">
+                <ApprovalButton />
+
+                <button
+                  onClick={handleSend}
+                  disabled={!canSend}
+                  className="border-2 border-normies-dark dark:border-normies-light px-8 py-3 text-sm uppercase tracking-widest
+                    hover:bg-normies-dark hover:text-normies-light dark:hover:bg-normies-light dark:hover:text-normies-darker transition-colors
+                    disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Send {selected.size} NFT{selected.size !== 1 ? 's' : ''}
+                </button>
+              </div>
+
+              <TransactionStatus status={status} onReset={handleReset} />
+            </div>
+          )}
+        </div>
+      )}
+    </Layout>
   );
 }
