@@ -6,4 +6,5 @@ export interface HoldersResponse {
 export interface NFT {
   identifier: string;
   image_url: string;
+  name?: string;
 }
