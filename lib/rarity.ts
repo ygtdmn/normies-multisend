@@ -102,6 +102,64 @@ export function isNormieFilterActive(filters: NormieFilterState): boolean {
   );
 }
 
+export type ActiveFilterTag = {
+  key: string;
+  label: string;
+};
+
+export function getActiveFilterTags(filters: NormieFilterState): ActiveFilterTag[] {
+  const tags: ActiveFilterTag[] = [];
+
+  if (filters.search.trim() !== '') {
+    tags.push({ key: 'search', label: `Search: ${filters.search.trim()}` });
+  }
+  if (filters.customized !== 'all') {
+    tags.push({ key: 'customized', label: `Customized: ${filters.customized === 'yes' ? 'Yes' : 'No'}` });
+  }
+  if (filters.actionMin.trim() !== '' || filters.actionMax.trim() !== '') {
+    tags.push({ key: 'action', label: `AP: ${filters.actionMin || '0'}–${filters.actionMax || '∞'}` });
+  }
+  if (filters.levelMin.trim() !== '' || filters.levelMax.trim() !== '') {
+    tags.push({ key: 'level', label: `Level: ${filters.levelMin || '0'}–${filters.levelMax || '∞'}` });
+  }
+  if (filters.pixelMin.trim() !== '' || filters.pixelMax.trim() !== '') {
+    tags.push({ key: 'pixel', label: `Pixels: ${filters.pixelMin || '0'}–${filters.pixelMax || '∞'}` });
+  }
+  for (const [trait, values] of Object.entries(filters.traits)) {
+    for (const value of values) {
+      tags.push({ key: `trait:${trait}:${value}`, label: `${trait}: ${value}` });
+    }
+  }
+
+  return tags;
+}
+
+export function removeActiveFilterTag(filters: NormieFilterState, key: string): NormieFilterState {
+  if (key === 'search') return { ...filters, search: '' };
+  if (key === 'customized') return { ...filters, customized: 'all' };
+  if (key === 'action') return { ...filters, actionMin: '', actionMax: '' };
+  if (key === 'level') return { ...filters, levelMin: '', levelMax: '' };
+  if (key === 'pixel') return { ...filters, pixelMin: '', pixelMax: '' };
+
+  if (key.startsWith('trait:')) {
+    const rest = key.slice('trait:'.length);
+    const separatorIndex = rest.indexOf(':');
+    if (separatorIndex === -1) return filters;
+    const trait = rest.slice(0, separatorIndex);
+    const value = rest.slice(separatorIndex + 1);
+    const nextTraits = { ...filters.traits };
+    const nextValues = (nextTraits[trait] ?? []).filter((item) => item !== value);
+    if (nextValues.length > 0) {
+      nextTraits[trait] = nextValues;
+    } else {
+      delete nextTraits[trait];
+    }
+    return { ...filters, traits: nextTraits };
+  }
+
+  return filters;
+}
+
 export function getTraitValue(normie: RarityNormie | undefined, trait: string) {
   return normie?.attributes.find((attr) => attr.trait_type.toLowerCase() === trait.toLowerCase())?.value;
 }
@@ -124,7 +182,7 @@ export function isCustomized(normie: RarityNormie | undefined): boolean {
 
 export function notableAccessory(normie: RarityNormie | undefined): string | undefined {
   const accessory = getTraitText(normie, 'Accessory');
-  if (!accessory || /^(none|no accessory|no)$/i.test(accessory)) return undefined;
+  if (!accessory || /^(none|no accessor(?:y|ies)|no)$/i.test(accessory)) return undefined;
   return accessory;
 }
 

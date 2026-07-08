@@ -72,7 +72,7 @@ export function NFTGrid({
           <p className="text-sm uppercase tracking-wider opacity-40">No matching Normies</p>
         </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
           {nfts.map((nft) => (
             <NFTCard
               key={nft.identifier}

@@ -6,7 +6,9 @@ import {
   SORT_LABELS,
   buildTraitOptions,
   createEmptyNormieFilters,
+  getActiveFilterTags,
   isNormieFilterActive,
+  removeActiveFilterTag,
   type CustomizedFilter,
   type NormieFilterState,
   type RarityNormie,
@@ -38,6 +40,7 @@ export function NFTFilters({
   const [open, setOpen] = useState(false);
   const traitOptions = useMemo(() => buildTraitOptions(tokenIds, metadata), [tokenIds, metadata]);
   const active = isNormieFilterActive(filters);
+  const activeTags = useMemo(() => getActiveFilterTags(filters), [filters]);
   const statusLabel = error ? 'Rarity data unavailable' : loading ? 'Syncing rarity snapshot' : null;
 
   const update = (patch: Partial<NormieFilterState>) => {
@@ -46,6 +49,10 @@ export function NFTFilters({
 
   const reset = () => {
     onChange(createEmptyNormieFilters());
+  };
+
+  const removeTag = (key: string) => {
+    onChange(removeActiveFilterTag(filters, key));
   };
 
   const toggleTrait = (trait: string, value: string, checked: boolean) => {
@@ -109,6 +116,24 @@ export function NFTFilters({
           </button>
         </div>
       </div>
+
+      {activeTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-normies-dark/15 p-3 pt-2 dark:border-normies-light/15">
+          {activeTags.map((tag) => (
+            <button
+              key={tag.key}
+              type="button"
+              onClick={() => removeTag(tag.key)}
+              className="flex items-center gap-1.5 border border-normies-dark/30 bg-normies-dark/[0.04] px-2 py-1 text-[9px] uppercase tracking-widest opacity-75 transition-colors hover:border-normies-dark hover:opacity-100 active:translate-y-px dark:border-normies-light/30 dark:bg-normies-light/[0.04] dark:hover:border-normies-light"
+            >
+              {tag.label}
+              <span aria-hidden="true" className="opacity-60">
+                ×
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {open && (
         <div className="space-y-4 border-t border-normies-dark/20 p-3 dark:border-normies-light/20">
@@ -190,26 +215,34 @@ export function NFTFilters({
             </div>
           </div>
 
-          <details className="group border border-normies-dark/25 dark:border-normies-light/25">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-[10px] uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100">
-              <span>Trait Matrix</span>
-              <span className="opacity-45">Open</span>
-            </summary>
-
-            <div className="grid gap-3 border-t border-normies-dark/15 p-3 sm:grid-cols-2 lg:grid-cols-4 dark:border-normies-light/15">
+          <div className="border border-normies-dark/25 dark:border-normies-light/25">
+            <p className="border-b border-normies-dark/15 px-3 py-2 text-[10px] uppercase tracking-widest opacity-50 dark:border-normies-light/15">
+              Trait Matrix
+            </p>
+            <div className="divide-y divide-normies-dark/15 dark:divide-normies-light/15">
               {FILTERABLE_TRAITS.map((trait) => {
                 const options = traitOptions[trait] ?? [];
                 if (options.length === 0) return null;
                 const selected = new Set(filters.traits[trait] ?? []);
                 return (
-                  <div key={trait} className="min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-[10px] uppercase tracking-widest opacity-50">{trait}</p>
-                      {selected.size > 0 && (
-                        <span className="text-[9px] uppercase tracking-widest opacity-50">{selected.size}</span>
-                      )}
-                    </div>
-                    <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
+                  <details key={trait} className="group">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[10px] uppercase tracking-widest opacity-70 transition-opacity hover:opacity-100">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <svg
+                          viewBox="0 0 8 8"
+                          fill="currentColor"
+                          aria-hidden="true"
+                          className="h-2 w-2 shrink-0 transition-transform group-open:rotate-90"
+                        >
+                          <path d="M2 0l4 4-4 4z" />
+                        </svg>
+                        <span className="truncate">{trait}</span>
+                      </span>
+                      <span className="shrink-0 tabular-nums opacity-50">
+                        {selected.size > 0 ? selected.size : options.length}
+                      </span>
+                    </summary>
+                    <div className="max-h-48 space-y-1 overflow-y-auto p-3 pt-0">
                       {options.map((option) => (
                         <label
                           key={option.value}
@@ -232,11 +265,11 @@ export function NFTFilters({
                         </label>
                       ))}
                     </div>
-                  </div>
+                  </details>
                 );
               })}
             </div>
-          </details>
+          </div>
         </div>
       )}
     </section>
