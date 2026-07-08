@@ -1,14 +1,20 @@
 'use client';
 
 import type { NFT } from '@/types/nft';
+import { getTraitNumber, isCustomized, notableAccessory, type RarityNormie } from '@/lib/rarity';
 
 interface NFTCardProps {
   nft: NFT;
   selected: boolean;
   onToggle: () => void;
+  metadata?: RarityNormie;
 }
 
-export function NFTCard({ nft, selected, onToggle }: NFTCardProps) {
+export function NFTCard({ nft, selected, onToggle, metadata }: NFTCardProps) {
+  const actionPoints = getTraitNumber(metadata, 'Action Points');
+  const customized = isCustomized(metadata);
+  const accessory = notableAccessory(metadata);
+
   return (
     <button
       onClick={onToggle}
@@ -30,8 +36,20 @@ export function NFTCard({ nft, selected, onToggle }: NFTCardProps) {
         </div>
       )}
 
-      <div className="p-2 text-xs text-center uppercase tracking-wider border-t border-normies-dark dark:border-normies-light">
-        #{nft.identifier}
+      <div className="p-2 text-xs uppercase tracking-wider border-t border-normies-dark dark:border-normies-light space-y-1">
+        <div className="text-center">#{nft.identifier}</div>
+        {metadata && (
+          <div className="flex flex-wrap items-center justify-center gap-1 text-[9px] opacity-60">
+            {metadata.rank && <span>R#{metadata.rank}</span>}
+            <span>AP {actionPoints}</span>
+            {customized && <span>Custom</span>}
+            {accessory && (
+              <span className="max-w-full truncate" title={accessory}>
+                {accessory}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {selected && (
