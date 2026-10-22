@@ -11,8 +11,13 @@ import {
   SEAPORT_ADDRESS,
 } from './contracts';
 
+// Since 4.4, seaport-js marks its build as CommonJS (lib/package.json is "type": "commonjs"), so its
+// `ethers` import resolves to ethers' CJS typings while this app gets the ESM ones. The two Signer
+// types differ only nominally (#private), hence the type-only cast; runtime is unchanged.
+type SeaportSigner = ConstructorParameters<typeof Seaport>[0];
+
 export function createSeaportClient(signer: JsonRpcSigner): Seaport {
-  return new Seaport(signer, {
+  return new Seaport(signer as unknown as SeaportSigner, {
     overrides: {
       contractAddress: SEAPORT_ADDRESS,
     },
