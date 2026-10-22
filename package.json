@@ -9,25 +9,31 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@opensea/seaport-js": "^4.0.7",
-    "@rainbow-me/rainbowkit": "^2.2.10",
-    "@tanstack/react-query": "^5.95.2",
-    "ethers": "^6.16.0",
-    "next": "16.2.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "viem": "^2",
+    "@opensea/seaport-js": "^4.4.0",
+    "@rainbow-me/rainbowkit": "^2.2.11",
+    "@tanstack/react-query": "^5.104.5",
+    "ethers": "^6.17.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "viem": "^2.57.8",
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "eslint": "^10.13.0",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@coinbase/cdp-sdk": "1.45.0",
+      "viem@2.23.2>ws": "^8.21.0"
+    }
   }
 }
